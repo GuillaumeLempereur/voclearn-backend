@@ -52,7 +52,16 @@ connection.query(reqSQL, function(err, rows, fields){
 });
 });
 
-//TODO getdeck
+/**
+ * words: Send an array of tuple (WordId1, WordId_2, Status)
+ * @data {number} nb_words - The number of tuple to be returned.
+ * @data {number} offset - The number of entry to skip is offset*nb_words.
+ * @data {string} sort_on_status - filter applied on the field Status
+ *      '' : all
+ *      'active': only the active
+ *      'inactive': only the inactive
+ * @returns {object} The array of tuples
+ */
 app.post('/words', (req, res) => {
   const { nb_words, sort_on_status, offset} = req.body;
   var ret = [];
@@ -66,7 +75,7 @@ app.post('/words', (req, res) => {
   connection.query(reqSQL, function(err, rows, fields){
     console.log('Connection result error '+err);
     for(let i=0;i<rows.length;++i){
-      ret.push([rows[i]['WordId_1'], rows[i]['WordId_2'], rows[i]['Status'], rows[i]['Score_1'], rows[i]['Score_2'], rows[i]['Score_3']]);
+      ret.push([rows[i]['WordId_1'], rows[i]['WordId_2'], rows[i]['Status']]); //, rows[i]['Score_1'], rows[i]['Score_2'], rows[i]['Score_3']]);
     }
     res.json({ Words: ret});
   });
