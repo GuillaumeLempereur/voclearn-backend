@@ -12,7 +12,6 @@ const connection = mysql.createConnection(credential);
 
 connection.connect();
 
-
 /**
  * getDeck: Send an array of tuple (WordId1, WordId_2, Status) starting from the lowest score to the higher
  * a word can be present only once in the array meaning the WordId_1 and WordId_2 are unique in the returned array

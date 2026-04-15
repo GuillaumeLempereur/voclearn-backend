@@ -24,15 +24,10 @@ const pool = mariadb.createPool({
  * @data {number} nb_words - The number of tuple to be returned.
  * @returns {object} The array of tuples
  */
-//TODO
 app.post('/getDeck', async (req, res) => {
     const { nb_words } = req.body;
     var ret = [];
-    reqSQL = 'SELECT WordId_1, WordId_2, Status FROM Stats WHERE Status = true AND WordId_2 >= 196608 LIMIT 50 ORDER BY Score_1*0.5 + Score_2*0.3 + Score_3*0.2'; // TODO reverse mode
-    reqSQL = 'SELECT WordId_1, WordId_2, Status FROM Stats WHERE Status = true AND WordId_2 >= 196608 LIMIT 50 ORDER BY Score_1'; // TODO reverse mode
-    reqSQL = 'SELECT WordId_1, WordId_2, Status FROM Stats WHERE Status = true AND WordId_2 >= 196608 LIMIT 50'; // TODO reverse mode
-    reqSQL = 'SELECT WordId_1, WordId_2, Status FROM Stats ORDER BY Score_1*0.5 + Score_2*0.3 + Score_3*0.2'; // TODO reverse mode
-    //reqSQL = 'SELECT WordId_1, WordId_2, Status, Score_1, Score_2, Score_3 FROM Stats ORDER BY Score_1*0.5 + Score_2*0.3 + Score_3*0.2 ASC'; // TODO reverse mode
+    reqSQL = 'SELECT WordId_1, WordId_2, Status FROM Stats WHERE Status = true ORDER BY Score_1*0.5 + Score_2*0.3 + Score_3*0.2 ASC'; // TODO reverse mode
 
     if(!nb_words)
         return res.status(400).json({ error: "Missing nb_words" });
@@ -40,31 +35,25 @@ app.post('/getDeck', async (req, res) => {
     let conn;
     try{
         conn = await pool.getConnection();
+        const rows = await conn.query(reqSQL, []);
 
-        const rows = await conn.query(reqSQL, [50, offset*20]); // TODO fix 20
-
-        // MariaDB adds an extra meta row; remove if needed
-        const result = rows[0] || null;
-
-  w1ID_set = new Set();
-  w2ID_set = new Set();
-  for(let i=0;i<rows.length;++i){
-    let w1ID = rows[i]['WordId_1'];
-    let w2ID = rows[i]['WordId_2'];
-    if(w1ID_set.has(w1ID))
-      continue;
-    if(w2ID_set.has(w2ID))
-      continue;
-    w1ID_set.add(w1ID);
-    w2ID_set.add(w2ID);
-    console.log([w1ID, w2ID, rows[i]['Status']]);
-    ret.push([w1ID, w2ID, rows[i]['Status']]);
-    //ret.push([w1ID, w2ID, rows[i]['Status'], rows[i]['Score_1'], rows[i]['Score_2'], rows[i]['Score_3']]);
-    if(ret.length==nb_words)
-      break;
-  }
-  res.json({ Words: ret});
-
+        w1ID_set = new Set();
+        w2ID_set = new Set();
+        for(let i=0;i<rows.length;++i){
+            let w1ID = rows[i]['WordId_1'];
+            let w2ID = rows[i]['WordId_2'];
+            if(w1ID_set.has(w1ID))
+                continue;
+            if(w2ID_set.has(w2ID))
+                continue;
+            w1ID_set.add(w1ID);
+            w2ID_set.add(w2ID);
+            console.log([w1ID, w2ID, rows[i]['Status']]);
+            ret.push([w1ID, w2ID, rows[i]['Status']]);
+            if(ret.length==nb_words)
+                break;
+        }
+        res.json({ Words: ret});
     }catch(err){
         console.error("Database error:", err);
         res.status(500).json({ error: "Database query failed" });
@@ -73,7 +62,6 @@ app.post('/getDeck', async (req, res) => {
             conn.end();
     }
 });
-
 
 /**
  * words: Send an array of tuple (WordId1, WordId_2, Status)
@@ -122,6 +110,92 @@ app.post('/words', async (req, res) => {
         if(conn)
             conn.end();
     }
+});
+
+/**
+ * status: Toggle the status of the Stat
+ * @data {number} wStat -  //TODO change to 2 params instead of object
+ * @data {object} wStat - [word 1, word 2]
+ * @returns {object} return the new status //TODO TBC
+ */
+app.post('/status', async (req, res) => {
+    const { wStat } = req.body;
+    var ret = [];
+
+    let conn;
+    try{
+        conn = await pool.getConnection();
+
+        const reqSQL = 'UPDATE Stats SET Status = !Status WHERE WordId_1 = ? AND WordId_2 = ?';
+        const rows = await conn.query(reqSQL, [wStat[0], wStat[1]]);
+
+        res.json((rows[0].Status == true));
+
+    }catch(err){
+        console.error("Database error:", err);
+        res.status(500).json({ error: "Database query failed" });
+    }finally{
+        if(conn)
+            conn.end();
+    }
+});
+
+/**
+ * updateStat: Update Stats after the end of the game
+ * @data {object} wordsStats - [[word 1, word 2, score], ...] // TODO TBC
+ * @data {number} reverseMode - //TODO number ?
+ * @returns {object} return the new status //TODO TBC
+ */
+app.post('/updateStat', async (req, res) => {
+    const { wordsStats, reverseMode } = req.body;
+    var ret = [];
+
+    // TODO: set halflife max
+    let reqSQL = '';
+    if(reverseMode)
+        reqSQL = 'UPDATE Stats SET ScoreInv_3 = ScoreInv_2, ScoreInv_2 = ScoreInv_1, ScoreInv_1 = ?, Date = NOW(), HalfLife = CASE WHEN ? > 0 AND HalfLife < 100 THEN HalfLife+1 ELSE HalfLife END WHERE WordId_1 = ? AND WordId_2 = ?'
+    else
+        reqSQL = 'UPDATE Stats SET Score_3 = Score_2, Score_2 = Score_1, Score_1 = ?, Date = NOW(), HalfLife = CASE WHEN ? > 0 AND HalfLife < 100 THEN HalfLife+1 ELSE HalfLife END WHERE WordId_1 = ? AND WordId_2 = ?'
+    /*
+    if(reverseMode)
+        reqSQL = 'UPDATE Stats SET ScoreInv_3 = ScoreInv_2, ScoreInv_2 = ScoreInv_1, ScoreInv_1 = ?, Date = NOW(), HalfLife = CASE WHEN ? > 0 AND HalfLife < 100 THEN HalfLife+1 ELSE HalfLife END WHERE UserId = 0 AND WordId_1 = ? AND WordId_2 = ?'
+    else
+        reqSQL = 'UPDATE Stats SET Score_3 = Score_2, Score_2 = Score_1, Score_1 = ?, Date = NOW(), HalfLife = CASE WHEN ? > 0 AND HalfLife < 100 THEN HalfLife+1 ELSE HalfLife END WHERE UserId = 0 AND WordId_1 = ? AND WordId_2 = ?'
+*/
+    const scores = { TP: 1.0, TN: 0.2, FP: 0.0, FN: 0.0 };
+    //console.log("conn2");
+    //console.log(conn2);
+
+    try{
+        conn = await pool.getConnection();
+        const statement = await conn.prepare(reqSQL);
+
+        const tasks = wordsStats.map((row, i) => {
+            const label = row[3];
+            const score = scores[label];
+            if(typeof score !== "number"){
+                throw new Error(`Unknown label '${label}' at index ${i}`);
+            }
+            const WordId_1 = row[0];
+            const WordId_2 = row[1];
+
+            return statement.execute([score, score, WordId_1, WordId_2])
+                .then(() => {
+                    console.log(`Updated pair (${WordId_1}, ${WordId_2}) with score ${score}`);
+                });
+        });
+
+        await Promise.all(tasks);
+    }catch(error){
+        throw error;
+    }finally{
+        try{
+            await statement.close();
+        }catch(closeErr){
+            console.warn("Failed to close prepared statement:", closeErr?.message || closeErr);
+        }
+    }
+    res.json(ret); // TODO
 });
 
 // Start the server
