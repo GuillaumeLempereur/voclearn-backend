@@ -170,8 +170,9 @@ app.post('/updateStat', async (req, res) => {
         conn = await pool.getConnection();
         const statement = await conn.prepare(reqSQL);
 
+      console.log(wordsStats);
         const tasks = wordsStats.map((row, i) => {
-            const label = row[3];
+            const label = row[2];
             const score = scores[label];
             if(typeof score !== "number"){
                 throw new Error(`Unknown label '${label}' at index ${i}`);
