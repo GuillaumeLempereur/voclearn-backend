@@ -1,8 +1,8 @@
 -- Create the DB Voclearn
 
-CREATE DATABASE VocLearn;
+--CREATE DATABASE VocLearn_test;
 
-USE VocLearn;
+USE VocLearn_test;
 
 CREATE TABLE Stats(User int, WordId_1 int, WordId_2 int, Score_1 float, Score_2 float, Score_3 float, Score_inv_1 float, Score_inv_2 float, Score_inv_3 float, Date bigint, HalfLife smallint, Status boolean, PRIMARY KEY(User, WordId_1, WordId_2));
 
