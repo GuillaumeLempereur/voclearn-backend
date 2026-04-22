@@ -4,40 +4,26 @@
  * */
 const express = require('express');
 const cors = require('cors');
-const credential = require('../credential.json');
-//const mysql = require('mysql2');
+const dotenv = require("dotenv");
 const mysql2 = require('mysql2/promise');
 
 const Words = require('./Words.json');
 const Translations = require('./Translations.json');
 const Stats = require('./Stats.json');
 
-/*
-const app = express();
-app.use(cors());
-app.use(express.json());
+dotenv.config();
 
-const connection = mysql.createConnection(credential);
-connection.connect();
-*/
-/*
-connection.query('SELECT * FROM Words LIMIT 20', function(err, rows, fields){
-    //response.end()
-  console.log('Connection result error '+err);
-  console.log('nb recs '+rows.length);
-  for(let i=0;i<rows.length;++i){
-    console.log(rows[i]);
-      //for(field in fields)
-      //  console.log(rows[i][field]);
-  }
-    console.log(fields);
-console.log("done");
-});
-*/
-
-// Insert Words
+/**
+ * Insert the words to the test database as defined in dotenv
+ */
 (async () => {
-    const conn = await mysql2.createConnection(credential);
+    const conn = await mysql2.createConnection({
+        host: process.env.DB_HOST,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        database: process.env.DB_DATABASE,
+        //port: process.env.DB_PORT, //TODO
+    });
 
     const rows = Words.map(word => [word[1], word[0], Math.floor(word[1]/65536), 0, ""]);
 
@@ -69,7 +55,13 @@ console.log("done");
 
 // Insert Stats
 (async () => {
-    const conn = await mysql2.createConnection(credential);
+    const conn = await mysql2.createConnection({
+        host: process.env.DB_HOST,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        database: process.env.DB_DATABASE,
+        //port: process.env.DB_PORT, //TODO
+    });
 
     const rows = Stats;
 
