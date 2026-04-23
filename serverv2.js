@@ -94,7 +94,7 @@ app.post('/words', async (req, res) => {
     try{
         conn = await pool.getConnection();
 
-        const rows = await conn.query(reqSQL, [50, offset*20]); // TODO fix 20
+        const rows = await conn.query(reqSQL, [nb_words, offset*nb_words]); // TODO fix 20
 
         // MariaDB adds an extra meta row; remove if needed
         const result = rows[0] || null;
