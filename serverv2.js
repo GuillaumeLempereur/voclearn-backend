@@ -1,7 +1,9 @@
 const express = require('express');
+const cors = require('cors');
 const mariadb = require('mariadb');
 const dotenv = require("dotenv");
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 dotenv.config();
@@ -28,15 +30,17 @@ const pool = mariadb.createPool({
 app.post('/getDeck', async (req, res) => {
     const { nb_words } = req.body;
     var ret = [];
-    reqSQL = 'SELECT WordId_1, WordId_2, Status FROM Stats WHERE Status = true ORDER BY Score_1*0.5 + Score_2*0.3 + Score_3*0.2 ASC'; // TODO reverse mode
+    let reqSQL = 'SELECT WordId_1, WordId_2, Status FROM Stats WHERE Status = true ORDER BY Score_1*0.5 + Score_2*0.3 + Score_3*0.2 ASC'; // TODO reverse mode
 
-    if(!nb_words)
+    if(nb_words===undefined)
         return res.status(400).json({ error: "Missing nb_words" });
-
+console.log("getDeck"); //debug
     let conn;
     try{
         conn = await pool.getConnection();
+console.log("reqSql", reqSQL); //debug
         const rows = await conn.query(reqSQL, []);
+console.log("qrry"); //debug
 
         w1ID_set = new Set();
         w2ID_set = new Set();
@@ -76,6 +80,10 @@ app.post('/getDeck', async (req, res) => {
  */
 app.post('/words', async (req, res) => {
     const { nb_words, sort_on_status, offset} = req.body;
+  console.log("nbWord")
+  console.log(nb_words)
+  console.log("offset")
+  console.log(offset)
     var ret = [];
     reqFilter = "";
     if(sort_on_status == "active")
@@ -85,16 +93,18 @@ app.post('/words', async (req, res) => {
 
     reqSQL = 'SELECT WordId_1, WordId_2, Status, Score_1, Score_2, Score_3 FROM Stats WHERE WordId_2 >= 196608 ' + reqFilter + ' LIMIT ? OFFSET ?';
 
-    if(!nb_words)
+    if(nb_words == undefined)
         return res.status(400).json({ error: "Missing nb_words" });
-    if(!offset)
+    if(offset === undefined) // TODO more check
         return res.status(400).json({ error: "Missing offset" });
 
     let conn;
     try{
         conn = await pool.getConnection();
+        console.log("args");
+        console.log([50, offset*20]);
 
-        const rows = await conn.query(reqSQL, [50, offset*20]); // TODO fix 20
+        const rows = await conn.query(reqSQL, [nb_words, offset*nb_words]); // TODO fix 20
 
         // MariaDB adds an extra meta row; remove if needed
         const result = rows[0] || null;
@@ -127,7 +137,7 @@ app.post('/status', async (req, res) => {
     try{
         conn = await pool.getConnection();
 
-        const reqSQL = 'UPDATE Stats SET Status = !Status WHERE WordId_1 = ? AND WordId_2 = ?';
+        let reqSQL = 'UPDATE Stats SET Status = !Status WHERE WordId_1 = ? AND WordId_2 = ?';
         const rows = await conn.query(reqSQL, [wStat[0], wStat[1]]);
 
         res.json((rows[0].Status == true));
@@ -204,3 +214,4 @@ app.post('/updateStat', async (req, res) => {
 app.listen(5000, () => {
     console.log('Server running on http://localhost:5000');
 });
+
