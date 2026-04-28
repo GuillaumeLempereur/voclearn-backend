@@ -1,7 +1,21 @@
 // Test of the POST request updateStat
+const mariadb = require('mariadb');
+const dotenv = require("dotenv");
 
+dotenv.config();
 // URL of your local server
 const url = "http://localhost:5000/updateStat";
+
+// Create a MariaDB connection pool
+const pool = mariadb.createPool({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    //database: process.env.DB_DATABASE,
+    database: "VocLearn_test",
+    //port: process.env.DB_PORT, //TODO
+    connectionLimit: 500 // TBC
+});
 
 // Data you want to send
 const data = {
@@ -36,36 +50,37 @@ async function sendPost() {
         });
 
         const result = await response.json();
-        
-        console.log(result);
-        /*
-        const Words = result["Words"];
-        for(word of Words){
-            let score = word[3]*0.5 + word[4]*0.3 + word[5]*0.2
-            console.log(score);
-        }
 
-        expectedResult = [
-            [ 65564, 196925, 1 ],
-            [ 65539, 201344, 0 ],
-            [ 65555, 197893, 1 ],
-            [ 65541, 197100, 0 ],
-            [ 65547, 196630, 0 ],
-            [ 65538, 201094, 0 ],
-            [ 65568, 198765, 1 ],
-            [ 65537, 200975, 0 ],
-            [ 65543, 197272, 0 ],
-            [ 65571, 201124, 1 ],
-            [ 65551, 198664, 1 ],
-            [ 65562, 197936, 0 ],
-            [ 65554, 196959, 1 ],
-            [ 65553, 196688, 1 ],
-            [ 65542, 198589, 0 ],
-            [ 65567, 200154, 1 ],
-            [ 65548, 196745, 0 ],
-            [ 65557, 198300, 1 ],
-            [ 65565, 197342, 1 ],
-            [ 65575, 197984, 1 ]];
+        console.log(result);
+
+        (async () => {
+            var ret = [];
+
+            reqSQL = 'SELECT WordId_1, WordId_2, Score_1, Score_2, Score_3 FROM Stats WHERE WordId_1 = ? AND WordId_2 = ?';
+
+            let conn;
+            try{
+                conn = await pool.getConnection();
+
+                for(let i=0;i<10;++i){
+                    const rows = await conn.query(reqSQL, [wordsStats[i][0], wordsStats[i][1]]);
+
+                    // MariaDB adds an extra meta row; remove if needed
+                    const result = rows[0] || null;
+
+                    if(len(result) == 1){
+                        ret.push([rows[i]['WordId_1'], rows[i]['WordId_2'], rows[i]['Score_1'], rows[i]['Score_2'], rows[i]['Score_3']]);
+                    }else
+                        console.log("prob");
+                    //res.json({ Words: ret});
+                }
+            }catch(err){
+                console.error("Database error:", err);
+            }finally{
+                if(conn)
+                    conn.end();
+            }
+        })();
 
         if(equal(expectedResult, Words))
             console.log("pass");
@@ -76,9 +91,8 @@ async function sendPost() {
             console.log("Got:")
             console.log(Words)
         }
-    */
 
-    } catch (error) {
+    }catch(error){
         console.error("Error during POST:", error);
     }
 }
